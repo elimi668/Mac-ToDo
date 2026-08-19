@@ -1,0 +1,85 @@
+"""截止提醒服务。每 60 秒检查一次，deadline 前 15 分钟触发提醒。"""
+from __future__ import annotations
+
+from datetime import datetime
+
+from PySide6.QtCore import QTimer
+from PySide6.QtGui import QIcon
+from PySide6.QtWidgets import QSystemTrayIcon, QWidget
+
+from app.database.repository import TaskRepository
+
+
+class ReminderService:
+    """截止提醒服务。"""
+
+    def __init__(
+        self,
+        repo: TaskRepository,
+        tray: QSystemTrayIcon,
+        parent: QWidget,
+        lead_minutes: int = 15,
+        interval_ms: int = 60_000,
+    ) -> None:
+        self._repo = repo
+        self._tray = tray
+        self._parent = parent
+        self._lead_minutes = lead_minutes
+        self._flashing = False
+        self._flash_timer: QTimer | None = None
+        self._restore_icon: QIcon | None = None
+
+        self._timer = QTimer()
+        self._timer.timeout.connect(self._check)
+        self._timer.start(interval_ms)
+
+    def _check(self) -> None:
+        now = datetime.now()
+        tasks = self._repo.list_due_reminders(now, lead_minutes=self._lead_minutes)
+        if not tasks:
+            self._stop_flash()
+            return
+
+        for task in tasks:
+            if task.deadline is None:
+                continue
+            self._notify(task)
+            self._repo.mark_reminded(task.id)
+
+    def _notify(self, task) -> None:
+        title = "任务即将到期"
+        msg = f'"{task.title}" 将在 {task.deadline} 截止'
+
+        if self._parent.isVisible():
+            self._tray.showMessage(title, msg, QSystemTrayIcon.MessageIcon.Information, 5000)
+        else:
+            self._tray.showMessage(title, msg, QSystemTrayIcon.MessageIcon.Information, 5000)
+            self._start_flash()
+
+    def _start_flash(self) -> None:
+        if self._flashing:
+            return
+        self._flashing = True
+        self._restore_icon = self._tray.icon()
+        self._flash_timer = QTimer()
+        self._flash_timer.timeout.connect(self._flash_tick)
+        self._flash_timer.start(800)
+
+    def _flash_tick(self) -> None:
+        if self._tray.icon().isNull():
+            return
+        # 简单闪烁：临时置空图标
+        if self._flash_timer.property("on") is True:
+            self._tray.setIcon(QIcon())
+            self._flash_timer.setProperty("on", False)
+        else:
+            self._tray.setIcon(self._restore_icon)
+            self._flash_timer.setProperty("on", True)
+
+    def _stop_flash(self) -> None:
+        if self._flashing and self._restore_icon is not None:
+            self._tray.setIcon(self._restore_icon)
+        self._flashing = False
+        if self._flash_timer is not None:
+            self._flash_timer.stop()
+            self._flash_timer = None

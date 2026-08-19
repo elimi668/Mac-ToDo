@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+
+# IDE
+.idea/
+.vscode/
+
+# App data
+app/data/
+*.db
+
+# Build
+build/
+dist/
+*.spec
+MacTodo
+
+# Archive
+*.zip
+
+# Large binaries
+MacTodo
+dist/
