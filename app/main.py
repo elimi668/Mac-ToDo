@@ -4,6 +4,8 @@ from __future__ import annotations
 import sys
 import traceback
 
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from app import config
@@ -31,6 +33,11 @@ def main() -> int:
     app.setApplicationName(config.APP_NAME)
     app.setQuitOnLastWindowClosed(False)
 
+    # 设置应用图标（任务栏和窗口）
+    icon_path = config.ICONS_DIR / "app_icon.png"
+    if icon_path.exists():
+        app.setWindowIcon(QIcon(str(icon_path)))
+
     qss_path = config.STYLES_FILE
     if qss_path.exists():
         app.setStyleSheet(qss_path.read_text(encoding="utf-8"))
@@ -40,6 +47,7 @@ def main() -> int:
     from app.services.reminder_service import ReminderService
 
     window = MainWindow()
+    window.setWindowFlags(window.windowFlags() | Qt.CustomizeWindowHint)
     window.show()
 
     tray = TrayManager(window)

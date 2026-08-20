@@ -1,0 +1,107 @@
+"""任务卡片：展示 Task 模型。右键菜单编辑/删除/完成。"""
+from __future__ import annotations
+
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtWidgets import (
+    QCheckBox,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QMenu,
+    QVBoxLayout,
+    QWidget,
+)
+
+from app import config
+from app.models.task import Task
+
+_PRIORITY_LABEL = {1: "高", 2: "中", 3: "低"}
+_PRIORITY_COLOR = {
+    1: config.COLOR_PRIORITY_HIGH,
+    2: config.COLOR_PRIORITY_MEDIUM,
+    3: config.COLOR_PRIORITY_LOW,
+}
+
+
+class TaskCard(QFrame):
+    toggled = Signal(int, bool)
+    edit_requested = Signal(int)
+    delete_requested = Signal(int)
+
+    def __init__(self, task: Task, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setObjectName("TaskCard")
+        self._task = task
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.customContextMenuRequested.connect(self._show_context_menu)
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(14, 12, 14, 12)
+        layout.setSpacing(12)
+
+        self._check = QCheckBox(self)
+        self._check.setObjectName("TaskCheckbox")
+        self._check.setChecked(task.completed)
+        self._check.toggled.connect(self._on_toggled)
+        layout.addWidget(self._check, 0, Qt.AlignVCenter)
+
+        center = QVBoxLayout()
+        center.setSpacing(2)
+        self._title = QLabel(task.title, self)
+        self._title.setObjectName("TaskTitle")
+        self._title.setText(self._format_title(task.title, task.completed))
+        center.addWidget(self._title)
+        self._sub_label = QLabel(self._build_subtitle(task), self)
+        self._sub_label.setObjectName("TaskSubtitle")
+        if task.completed:
+            self._sub_label.setProperty("done", True)
+        center.addWidget(self._sub_label)
+        layout.addLayout(center, stretch=1)
+
+        dot = QLabel(self)
+        dot.setObjectName("PriorityDot")
+        dot.setFixedSize(10, 10)
+        color = _PRIORITY_COLOR.get(task.priority, config.COLOR_TEXT_SECONDARY)
+        dot.setStyleSheet("background-color: {}; border-radius: 5px;".format(color))
+        layout.addWidget(dot, 0, Qt.AlignVCenter)
+
+
+    @staticmethod
+    def _format_title(title: str, done: bool) -> str:
+        """用 <s> 标签实现删除线（QSS 不支持 text-decoration）。"""
+        return f"<s>{title}</s>" if done else title
+
+    def _show_context_menu(self, pos):
+        menu = QMenu(self)
+        if self._task.completed:
+            act_toggle = menu.addAction("取消完成")
+        else:
+            act_toggle = menu.addAction("完成")
+        act_toggle.triggered.connect(self._toggle_via_menu)
+        menu.addSeparator()
+        act_edit = menu.addAction("编辑")
+        act_edit.triggered.connect(lambda: self.edit_requested.emit(self._task.id))
+        menu.addSeparator()
+        act_del = menu.addAction("删除")
+        act_del.triggered.connect(lambda: self.delete_requested.emit(self._task.id))
+        menu.exec(self.mapToGlobal(pos))
+
+    def _toggle_via_menu(self):
+        self.toggled.emit(self._task.id, not self._task.completed)
+
+    def _on_toggled(self, checked):
+        self._title.setProperty("done", checked)
+        self._title.setText(self._format_title(self._task.title, checked))
+        self._sub_label.setProperty("done", checked)
+        self._sub_label.style().unpolish(self._sub_label)
+        self._sub_label.style().polish(self._sub_label)
+        self.toggled.emit(self._task.id, checked)
+
+    @staticmethod
+    def _build_subtitle(task):
+        parts = [task.category, _PRIORITY_LABEL.get(task.priority, "")]
+        if task.deadline is not None:
+            parts.append(task.deadline.strftime("%m-%d %H:%M"))
+        if task.completed:
+            parts.append("已完成")
+        return " · ".join(p for p in parts if p)

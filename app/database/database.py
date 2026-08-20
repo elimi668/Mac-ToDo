@@ -1,13 +1,21 @@
 """数据库初始化：engine / SessionLocal / init_db / dispose_db。"""
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
 from sqlalchemy import Engine, create_engine
 from sqlalchemy import event
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from app import config
 
-DB_DIR = config.APP_ROOT / "data"
+# 使用用户目录存储数据，确保可写
+if getattr(sys, 'frozen', False):
+    # 打包后使用 AppData 目录
+    DB_DIR = Path.home() / "AppData" / "Local" / "TodoMate" / "data"
+else:
+    DB_DIR = config.APP_ROOT / "data"
 DB_FILE = DB_DIR / "todo.db"
 
 

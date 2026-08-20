@@ -1,17 +1,31 @@
 """全局配置常量。集中管理窗口尺寸、颜色、字体等。"""
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 # ---------- 路径 ----------
 APP_ROOT: Path = Path(__file__).resolve().parent
+
+# PyInstaller 打包后获取正确路径
+if getattr(sys, 'frozen', False):
+    if hasattr(sys, '_MEIPASS'):
+        # PyInstaller 单文件模式：临时解压目录，APP_ROOT 是 _MEIPASS/app
+        APP_ROOT = Path(sys._MEIPASS) / "app"
+    else:
+        # PyInstaller 文件夹模式
+        APP_ROOT = Path(sys.executable).parent
+else:
+    # 开发环境
+    APP_ROOT = Path(__file__).resolve().parent
+
 RESOURCES_DIR: Path = APP_ROOT / "resources"
 ICONS_DIR: Path = RESOURCES_DIR / "icons"
 STYLES_DIR: Path = RESOURCES_DIR / "styles"
 STYLES_FILE: Path = APP_ROOT / "ui" / "styles.qss"
 
 # ---------- 窗口 ----------
-APP_NAME: str = "Mac Todo"
+APP_NAME: str = "TodoMate"
 WINDOW_WIDTH: int = 560
 WINDOW_HEIGHT: int = 680
 WINDOW_RADIUS: int = 12
@@ -40,7 +54,7 @@ CATEGORIES: list[str] = ["全部", "工作", "学习", "生活"]
 PRIORITY_FILTERS: list[tuple[str, int | None]] = [("全部", None), ("高", 1), ("中", 2), ("低", 3)]
 
 # ---------- 托盘 ----------
-TRAY_TOOLTIP: str = "Mac Todo"
+TRAY_TOOLTIP: str = "TodoMate"
 TRAY_ICON_TEXT: str = "T"
 
 # ---------- 备份 ----------

@@ -1,4 +1,4 @@
-﻿"""开机启动管理（Windows 注册表）。"""
+"""开机启动管理（Windows 注册表）。"""
 from __future__ import annotations
 
 import sys
@@ -18,7 +18,7 @@ def is_enabled() -> bool:
         import winreg
 
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, _registry_key(), 0, winreg.KEY_READ) as key:
-            winreg.QueryValueEx(key, "MacTodo")
+            winreg.QueryValueEx(key, "TodoMate")
             return True
     except FileNotFoundError:
         return False
@@ -41,7 +41,7 @@ def enable() -> bool:
         with winreg.OpenKey(
             winreg.HKEY_CURRENT_USER, _registry_key(), 0, winreg.KEY_SET_VALUE
         ) as key:
-            winreg.SetValueEx(key, "MacTodo", 0, winreg.REG_SZ, target)
+            winreg.SetValueEx(key, "TodoMate", 0, winreg.REG_SZ, target)
         return True
     except OSError:
         return False
@@ -56,7 +56,7 @@ def disable() -> bool:
         with winreg.OpenKey(
             winreg.HKEY_CURRENT_USER, _registry_key(), 0, winreg.KEY_SET_VALUE
         ) as key:
-            winreg.DeleteValue(key, "MacTodo")
+            winreg.DeleteValue(key, "TodoMate")
         return True
     except FileNotFoundError:
         return True
