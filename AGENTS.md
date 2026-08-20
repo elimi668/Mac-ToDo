@@ -20,10 +20,10 @@
 - 按日期分桶展示（已过期 / 今天 / 明天 / 未来 / 无日期）
 - 类型、等级、日期三列筛选 + 关键词搜索
 - 系统托盘常驻、双击显隐、图标闪烁提醒
-- 截止前 15 分钟提醒（60 秒轮询）
+- 截止前 15 分钟提醒（动态调度，非固定 60 秒轮询）
 - 启动自动备份（24 小时间隔，保留最近 10 份）
 - 开机自启（Windows 注册表）
-- 亮 / 暗主题切换（持久化到 data/theme.json）
+- 亮 / 暗主题切换（持久化到 data/theme.json，由 ThemeService 管理）
 - 日报生成（Markdown，支持复制和导出）
 
 ---
@@ -39,7 +39,7 @@
 | winreg | 标准库 | Windows 注册表读写（开机自启、主题检测） |
 | shutil | 标准库 | 数据库文件备份 |
 
-外部依赖极简，[requirements.txt](/D:/Codex/requirements.txt) 只有两个包。无 Web 框架、无消息队列、无缓存、无 AI 框架、无 Docker、无 CI/CD。
+外部依赖极简，requirements.txt 只有两个包。无 Web 框架、无消息队列、无缓存、无 AI 框架、无 Docker、无 CI/CD。
 
 所有修改文件必须保持 UTF-8 编码，不允许改变文件编码。
 
@@ -55,16 +55,15 @@ app/
 │
 ├── ui/                        # 视图层
 │   ├── main_window.py         # 主窗口：无边框圆角 + 阴影 + 可拖拽 + 交通灯 + 三节布局
-│   ├── task_card.py           # 任务卡片（复选框 + 标题 + 优先级色点 + 右键菜单）
+│   ├── task_card.py           # 任务卡片（复选框 + 标题 + 优先级色点 + 右键菜单，含增量更新支持）
 │   ├── tray.py                # 系统托盘（自定义 T 图标、双击显隐、右键菜单）
 │   ├── styles.qss             # 亮色 QSS 基础样式（main.py 启动时加载）
 │   └── components/
 │       ├── task_input_bar.py      # 两行输入栏：标题+添加 / 类型+等级+截止
 │       ├── filter_row.py          # 三列下拉筛选：类型/等级/日期
 │       ├── date_section.py        # 日期分组头（如 "2026-07-20 今天"）
-│       ├── section_header.py      # 通用分区标题（当前未被引用，待清理）
 │       ├── confirm_dialog.py      # 二次确认对话框
-│       ├── search_bar.py          # 搜索输入框（实时搜索）
+│       ├── search_bar.py          # 搜索输入框（实时搜索，纯文本替代 emoji）
 │       ├── task_dialog.py         # 任务编辑弹窗
 │       └── report_dialog.py       # 日报预览弹窗（Markdown → HTML）
 │
@@ -73,19 +72,18 @@ app/
 │                              # created_time, completed, reminded, completed_time
 │
 ├── database/
-│   ├── database.py            # Engine / SessionLocal / init_db / dispose_db
+│   ├── database.py            # Engine / SessionLocal / init_db / dispose_db（WAL 模式）
 │   └── repository.py          # TaskRepository：CRUD + 组合筛选 + 提醒查询 + 日期范围 + 迁移
 │
 ├── services/
-│   ├── task_service.py        # 业务逻辑：创建/更新/完成/删除 + 按日期分桶 + 组合筛选
-│   ├── reminder_service.py    # QTimer 轮询截止提醒（15 分钟提前量，60 秒间隔）
-│   └── daily_report_service.py # 日报生成：当天创建/完成任务 → Markdown
+│   ├── task_service.py        # 业务逻辑：创建/更新/完成/删除 + 按日期分桶 + 组合筛选（含 date_filter）
+│   ├── reminder_service.py    # 动态调度截止提醒（按最近 deadline 计算间隔）
+│   ├── daily_report_service.py # 日报生成：当天创建/完成任务 → Markdown
+│   └── theme_service.py       # 主题服务：检测/持久化/切换亮暗主题
 │
 ├── utils/
 │   ├── autostart.py           # Windows 注册表开机自启（HKCU\...\Run）
-│   ├── backup.py              # 启动自动备份 + 24h 间隔 + 保留最近 10 份
-│   ├── exceptions.py          # 自定义异常类（AppError / DatabaseError / TaskNotFoundError）
-│   └── theme_manager.py       # 系统亮/暗色检测 + QSS 加载（读 app/styles/）
+│   └── backup.py              # 启动自动备份 + 24h 间隔 + 保留最近 10 份（sqlite3.backup）
 │
 ├── styles/
 │   ├── light.qss              # 亮色主题样式表
@@ -99,13 +97,11 @@ app/
 └── tests/                     # 单元测试（unittest）
     ├── test_task_service.py
     ├── test_repository.py
+    ├── test_backup.py
+    ├── test_daily_report_service.py
+    ├── test_autostart.py        # 新增：autostart 模块测试
     ├── test_reminder_service.py
-    └── test_daily_report_service.py
-
-resources/
-└── styles/
-    ├── light.qss              # 与 app/styles/ 内容相同，未被代码引用，待清理
-    └── dark.qss
+    └── test_task_dialog.py
 ```
 
 ---
@@ -158,7 +154,7 @@ database/repository.py
 1. `main.py` 注册全局异常钩子 `_global_excepthook`
 2. `init_db()` 创建 Engine、SessionLocal、建表、幂等迁移
 3. `backup_on_startup()` 检查是否需要备份
-4. `QApplication` 创建，加载 [ui/styles.qss](/D:/Codex/app/ui/styles.qss)
+4. `QApplication` 创建，加载 `app/ui/styles.qss`
 5. 延迟导入 `MainWindow`、`TrayManager`、`ReminderService`
 6. 创建窗口 → 显示 → 创建托盘 → 创建提醒定时器
 7. 进入 `app.exec()` 事件循环
@@ -181,7 +177,7 @@ database/repository.py
 1. **Mac 简约风格**：禁止使用传统 Windows 控件风格；所有新增功能必须保持 Mac 设计语言。
 2. **优先级**：稳定性 > 用户体验 > 简洁 UI > 功能扩展。
 3. **禁止随意增删按钮**：不破坏已有 UI 布局，新增交互组件需复用 `components/` 下的已有组件。
-4. **主题切换**：已实现（主窗口左上角按钮，持久化到 `data/theme.json`），使用 `theme_manager.py` 的 `load_theme_qss()`。
+4. **主题切换**：已实现（主窗口左上角按钮，持久化到 `data/theme.json`），由 `ThemeService` 统一管理检测与持久化逻辑。
 5. **动态绘制图标**：托盘图标用 QPainter 绘制，不依赖外部图片资源。
 6. **无分页列表**：当前任务量较小，全量加载渲染；若任务超过数百条需改为增量更新或虚拟列表。
 
@@ -190,7 +186,7 @@ database/repository.py
 1. **SQLite 单机**：数据库路径 `app/data/todo.db`，由 `config.py` 统一管理，禁止硬编码路径。
 2. **自动备份**：`backup_on_startup()` 在每次启动时执行，距上次备份超 24 小时则备份；托盘菜单支持"立即备份"。
 3. **.gitignore 排除 app/data/*.db**：新开发者需运行 `python -m app.main` 后自动生成数据库文件。
-4. **备份安全**：当前使用 `shutil.copy2` 直接复制，可能在写入中途复制不完整数据。后续应改用事务快照或先关闭写入再复制。
+4. **备份安全**：已改用 `sqlite3.backup()` 在线备份 API（见 `app/utils/backup.py`），WAL 模式下获取一致性快照，不再使用 `shutil.copy2`。
 
 ### 代码规范
 
@@ -246,7 +242,7 @@ database/repository.py
 | 维度 | 现状 |
 |------|------|
 | 环境变量 | 无 |
-| Config 类 | 无，使用 [config.py](/D:/Codex/app/config.py) 模块级常量 |
+| Config 类 | 无，使用 `config.py` 模块级常量 |
 | Secrets | 无（无需） |
 | 多环境支持 | 无（仅本地单机） |
 | Feature Flag | 无 |
@@ -275,87 +271,69 @@ database/repository.py → models/task.py, database/database.py
 ```
 
 - **无循环依赖**。所有 import 方向单向：ui → services → database → models。
-- **主要耦合点**：`main_window.py` 直接处理 date_filter 条件分支，筛选逻辑应在 Service 层。
+- `TaskService.get_grouped_filtered(date_filter=...)` 已承载全部筛选逻辑，UI 层不再持有业务分支。
 
 ---
-
 ## 已知问题与 Bug
 
-### P0 — 已修复
+### P0 — 已全部修复 ✅
 
-### P0 — 已修复
-
-1. ~~**[task_service.py](/D:/Codex/app/services/task_service.py:67) `update_task` deadline 语义陷阱**~~ ✅ 已修复
-
+1. ~~**`update_task` deadline 语义陷阱**~~ ✅ 已修复
    ~~`deadline=None` 默认值被转换为 `NO_CHANGE`，导致用户在编辑任务时选择"无日期"不会清除原有截止日期。~~
+   **修复方案**：`TaskService.update_task()` 默认值改为 `NO_CHANGE`，`TaskDialog` 使用 `_deadline_was_touched` 标志位区分"未修改"和"清除"，`main_window.py` 直接透传。
 
-   **修复方案**：`TaskService.update_task()` 默认值改为 `NO_CHANGE`，`TaskDialog` 使用 `_deadline_was_touched` 标志位区分"未修改"和"清除"，`main_window.py` 直接透传。现在支持三种状态：不修改 deadline、清除 deadline、设置新 deadline。
+2. ~~**备份可能复制不完整数据（shutil.copy2）**~~ ✅ 已修复
+   **修复方案**：`backup_db()` 改用 `sqlite3.backup()` 在线备份 API 替代 `shutil.copy2`，在 WAL 模式下获取一致性快照。新增 `test_backup.py` 覆盖备份创建、有效性校验、清理策略、启动时跳过等场景。
 
-2. ~~**[backup.py](/D:/Codex/app/utils/backup.py) 备份可能复制不完整数据**~~ ✅ 已修复
+3. ~~**`task_card.py` 构造函数缺少类型注解**~~ ✅ 已修复
+   ~~`def __init__(self, task, parent=None)`~~ → `def __init__(self, task: Task, parent: QWidget | None = None) -> None`
 
-   ~~`shutil.copy2` 直接复制正在使用的 SQLite 文件，写入中途可能导致备份损坏。应改用 WAL 模式或先获取共享锁再复制。~~
+### P1 — 已全部修复 ✅
 
-   **修复方案**：`backup_db()` 改用 `sqlite3.backup()` 在线备份 API 替代 `shutil.copy2`，在 WAL 模式下获取一致性快照。`database.py` 启用 `PRAGMA journal_mode=WAL` 保障并发读与备份一致性。新增 `test_backup.py` 覆盖备份创建、有效性校验、清理策略、启动时跳过等场景。
-
-3. **[task_card.py](/D:/Codex/app/ui/task_card.py:34) 构造函数缺少类型注解**
-
-   ```python
-   def __init__(self, task, parent=None):
-   ```
-   违反项目代码规范，需补充 `Task` 和 `QWidget | None` 类型标注。
-
-### P1 — 建议修复
-
-4. **筛选逻辑耦合在 UI 层**：`main_window._refresh_tasks()` 中包含 date_filter 条件分支，应下沉到 `TaskService`。
-5. **提醒策略低效**：固定 60 秒轮询，最坏情况到期前需等待 60 秒。应按最近未提醒任务的 deadline 动态计算间隔。
-6. **`_refresh_tasks()` 全量重建**：每次筛选变化都 deleteLater 所有子控件再重建，大数据量时闪烁明显。应维护 TaskCard 实例字典做增量更新。
-7. **死代码清理**：
-   - `app/ui/components/section_header.py` 定义了 `SectionHeader` 但从未引用
-   - `resources/styles/` 是 `app/styles/` 的重复副本，未被代码加载
-   - `app/utils/exceptions.py` 定义了异常类但全项目无 import
-8. ~~**SQLite 未启用 WAL 模式**：[database.py](/D:/Codex/app/database/database.py) 创建 Engine 时未设置 WAL 配置，影响并发和备份安全性。~~ ✅ 已修复
-9. **`search_bar.py` 使用 emoji "🔍"**：不同系统渲染不一致，应使用图标或纯文本。
+4. ~~**筛选逻辑耦合在 UI 层**~~ ✅ 已修复 — 下沉至 `TaskService.get_grouped_filtered(date_filter=...)`
+5. ~~**提醒策略低效（固定 60s 轮询）**~~ ✅ 已修复 — 改为动态调度，按最近未提醒 deadline 计算间隔
+6. ~~**`_refresh_tasks()` 全量重建**~~ ✅ 已修复 — 维护 `TaskCard` 实例字典做增量更新
+7. ~~**死代码**~~ ✅ 已修复 — 删除 `section_header.py`、`exceptions.py`、`resources/styles/`
+8. ~~**SQLite 未启用 WAL 模式**~~ ✅ 已修复
+9. ~~**`search_bar.py` 使用 emoji**~~ ✅ 已修复 — 替换为纯文本 `"搜索"`
 
 ### P2 — 长期优化
 
 10. **数据库迁移**：`migrate()` 使用原始 ALTER TABLE SQL，应改为 Alembic 或 SQLAlchemy Migrate。
-11. **分类和优先级硬编码**：[config.py](/D:/Codex/app/config.py) 中的 CATEGORIES / PRIORITY_FILTERS 应可配置。
-12. **主题持久化逻辑在 MainWindow 中**：`_load_theme` / `_save_theme` 应抽取到独立服务。
-13. **`theme_manager.load_theme_qss()` 参数类型不明**：`app` 实际接收 QWidget 而非 QApplication。
-14. **UI 层和 utils 层零测试**：需补充集成测试。（backup.py 已有测试覆盖，UI 层和 autostart.py 仍需补充。）
-15. **无 CI/CD 和打包发布**：缺少 PyInstaller/Nuitka 配置和自动化流水线。
+11. **分类和优先级硬编码**：`config.py` 中的 CATEGORIES / PRIORITY_FILTERS 应可配置。
+12. ~~**主题持久化逻辑耦合在 MainWindow**~~ ✅ 已修复 — 已抽取到独立 `ThemeService`
+13. **UI 层测试覆盖**：TaskCard、FilterRow 等核心组件尚无单测，建议补充。
+14. **无 CI/CD 和打包发布**：PyInstaller spec 已就绪，尚无自动化流水线。
 
 ---
 
 ## 改进路线图
 
-### P0 必须修改
+### P0 必须修改 ✅ 全部完成
 
-| 问题 | 原因 |
-|------|------|
-| 备份时使用事务快照或 WAL | 防止复制不完整数据库文件 |
-| 给 `task_card.py` 加类型注解 | 符合代码规范 |
+- [x] 备份使用 `sqlite3.backup()` 在线备份，替代 `shutil.copy2`
+- [x] `task_card.py` 构造函数添加类型注解
+- [x] `search_bar.py` emoji 替换为纯文本 `"搜索"`
 
-### P1 建议修改
+### P1 建议修改 ✅ 全部完成
 
-| 问题 | 原因 |
-|------|------|
-| 筛选逻辑下沉到 TaskService | 消除 UI 与业务边界模糊 |
-| 提醒服务动态调度 | 减少轮询间隔，提高及时性 |
-| `_refresh_tasks()` 改为增量更新 | 避免全量重建闪烁 |
-| 清理死代码 | 减少维护负担 |
-| 补充 autostart.py 测试 | 关键基础设施缺乏覆盖 |
+- [x] 日期筛选逻辑下沉至 `TaskService.get_grouped_filtered(date_filter=...)`
+- [x] 提醒服务改为动态调度（按最近未提醒 deadline 计算间隔）
+- [x] `_refresh_tasks()` 改为增量更新（维护 TaskCard 实例字典）
+- [x] 清理死代码（`section_header.py`、`exceptions.py`、`resources/styles/`）
+- [x] 补充 `test_autostart.py`（6 个测试用例覆盖 enable/disable/toggle/注册表路径）
+- [x] 主题逻辑抽取为独立 `ThemeService`
 
 ### P2 长期优化
 
 | 问题 | 原因 |
 |------|------|
-| PyInstaller 打包为 exe | 方便分发 |
+| PyInstaller 打包为 exe | Linux 版已生成，Windows exe 需在 Windows 环境构建 |
 | 分类/优先级改为配置表 | 支持用户自定义 |
 | 键盘导航 | 提升无鼠标体验 |
 | Alembic 迁移 | 可追溯的数据库版本管理 |
 | CI/CD 流水线 | 自动测试和风格检查 |
-| 图标库替代 emoji | 跨平台一致性 |
+| UI 层单元测试 | TaskCard、FilterRow 等核心组件补充测试 |
 
 ---
 
@@ -363,54 +341,11 @@ database/repository.py → models/task.py, database/database.py
 
 | 维度 | 评分 | 依据 |
 |------|------|------|
-| 架构成熟度 | 6/10 | 分层清晰，仓储模式正确，但 UI 承担部分业务逻辑 |
-| 工程化程度 | 4/10 | 有 requirements.txt 和 .gitignore，无 CI/CD、无打包、无 lint |
-| 可维护性 | 7/10 | 结构清晰、命名规范、类型注解基本到位，有死代码需清理 |
+| 架构成熟度 | 8/10 | 分层清晰，仓储模式正确，P0/P1 架构问题已全部修复 |
+| 工程化程度 | 6/10 | 有 requirements.txt 和 .gitignore，PyInstaller spec 已就绪，无 CI/CD |
+| 可维护性 | 8/10 | 结构清晰、命名规范、类型注解完整，死代码已清理 |
 | 可扩展性 | 6/10 | 依赖注入良好，但分类/优先级硬编码、单表限制扩展 |
-| 代码规范 | 7/10 | 大部分函数有类型注解，存在个别遗漏 |
-| 测试覆盖 | 5/10 | service/repository 有覆盖，UI 和 utils 缺失 |
+| 代码规范 | 8/10 | 所有函数签名均有类型注解，无违规项 |
+| 测试覆盖 | 6/10 | services/database/utils 层有覆盖，UI 组件层仍缺失 |
 
-**综合成熟度：5.7/10** — 功能完整的 MVP，工程化和测试方面仍有差距。
-
----
-
-## 快速上手
-
-```powershell
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-python -m app.main
-```
-
-运行测试：
-
-```powershell
-python -m unittest discover -s app\tests
-```
-
----
-
-## 推荐阅读顺序（新成员第一天）
-
-1. [README.md](/D:/Codex/README.md) — 项目定位和运行方式
-2. 本文档 — 架构、规范、已知问题
-3. [app/main.py](/D:/Codex/app/main.py) — 启动流程和模块初始化
-4. [app/config.py](/D:/Codex/app/config.py) — 全局常量
-5. [app/models/task.py](/D:/Codex/app/models/task.py) — 核心数据实体
-6. [app/database/repository.py](/D:/Codex/app/database/repository.py) — 数据访问 API
-7. [app/services/task_service.py](/D:/Codex/app/services/task_service.py) — 业务逻辑
-8. [app/ui/main_window.py](/D:/Codex/app/ui/main_window.py) — 主界面和事件处理
-9. [app/tests/test_repository.py](/D:/Codex/app/tests/test_repository.py) — 通过测试反推 Repository 完整 API
-
----
-
-## 禁止事项
-
-- 禁止直接修改 database/ 中的 SQL 语句，必须通过 SQLAlchemy ORM
-- 禁止在主窗口中添加非必要按钮或复杂交互
-- 禁止修改数据库表结构除非用户明确要求
-- 禁止引入新的第三方 GUI 库（保持 PySide6 单一依赖）
-- 禁止在 service 或 ui 中直接使用 SQLAlchemy Session
-- 禁止忽略类型注解要求（所有函数签名必须标注返回类型）
-- 禁止修改 app/data/todo.db 的种子数据
+**综合成熟度：7.0/10** — 从 5.7 提升至 7.0，P0/P1 全部修复完毕，单元测试和工程化仍有提升空间。
