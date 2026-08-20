@@ -1,12 +1,17 @@
 """系统托盘图标管理。"""
 from __future__ import annotations
 
+from pathlib import Path
+
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QAction, QColor, QFont, QIcon, QPainter, QPixmap
+from PySide6.QtGui import QAction, QIcon
 from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon, QWidget
 
 from app import config
 from app.utils import autostart
+
+# 图标路径
+ICON_PATH: Path = Path(__file__).resolve().parent.parent / "resources" / "icons" / "app_icon.png"
 
 
 class TrayManager:
@@ -20,6 +25,12 @@ class TrayManager:
         self._build_menu()
 
     def _make_icon(self) -> QIcon:
+        """从 PNG 文件加载托盘图标。"""
+        if ICON_PATH.exists():
+            return QIcon(str(ICON_PATH))
+        # 回退：绘制简单图标
+        from PySide6.QtGui import QColor, QFont, QPainter, QPixmap
+
         pm = QPixmap(64, 64)
         pm.fill(QColor(0, 0, 0, 0))
         p = QPainter(pm)
