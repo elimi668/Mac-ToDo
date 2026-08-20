@@ -4,11 +4,14 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QAction, QColor, QFont, QIcon, QPainter, QPixmap
+from PySide6.QtGui import QAction, QIcon
 from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon, QWidget
 
 from app import config
 from app.utils import autostart
+
+# 图标路径
+ICON_PATH: Path = Path(__file__).resolve().parent.parent / "resources" / "icons" / "app_icon.png"
 
 
 class TrayManager:

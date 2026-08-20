@@ -1,6 +1,8 @@
 """Main window: borderless + rounded corners + shadow + draggable + traffic lights + vertical three-section layout."""
 from __future__ import annotations
 
+from pathlib import Path
+
 from PySide6.QtCore import QPoint, Qt
 from PySide6.QtGui import QColor, QKeySequence, QMouseEvent, QShortcut
 from PySide6.QtWidgets import (
@@ -13,6 +15,9 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+
+# 窗口图标路径
+WINDOW_ICON_PATH = Path(__file__).resolve().parent.parent / "resources" / "icons" / "app_icon.png"
 
 from app import config
 from app.services.task_service import TaskService
@@ -52,6 +57,8 @@ class MainWindow(QWidget):
         self.setWindowTitle(config.APP_NAME)
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Window)
         self.setAttribute(Qt.WA_TranslucentBackground)
+        if WINDOW_ICON_PATH.exists():
+            self.setWindowIcon(WINDOW_ICON_PATH)
         margin = config.SHADOW_MARGIN
         self.resize(config.WINDOW_WIDTH + margin * 2, config.WINDOW_HEIGHT + margin * 2)
         self.setMinimumSize(config.WINDOW_MIN_WIDTH + margin * 2, 400)
