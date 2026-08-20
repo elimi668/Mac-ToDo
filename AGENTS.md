@@ -296,14 +296,18 @@ database/repository.py → models/task.py, database/database.py
 7. ~~**死代码**~~ ✅ 已修复 — 删除 `section_header.py`、`exceptions.py`、`resources/styles/`
 8. ~~**SQLite 未启用 WAL 模式**~~ ✅ 已修复
 9. ~~**`search_bar.py` 使用 emoji**~~ ✅ 已修复 — 替换为纯文本 `"搜索"`
+10. ~~**右键菜单无响应**~~ ✅ 已修复 — `main_window.py` 中创建 TaskCard 后连接 toggled/edit_requested/delete_requested 信号
+11. ~~**对话框样式不统一**~~ ✅ 已修复 — TaskDialog 和 ConfirmDialog 添加 FramelessWindowHint，统一圆角无边框风格
+12. ~~**托盘图标固定绘制**~~ ✅ 已修复 — 支持自定义图标（app/resources/icons/app_icon.png）
 
 ### P2 — 长期优化
 
-10. **数据库迁移**：`migrate()` 使用原始 ALTER TABLE SQL，应改为 Alembic 或 SQLAlchemy Migrate。
-11. **分类和优先级硬编码**：`config.py` 中的 CATEGORIES / PRIORITY_FILTERS 应可配置。
-12. ~~**主题持久化逻辑耦合在 MainWindow**~~ ✅ 已修复 — 已抽取到独立 `ThemeService`
-13. **UI 层测试覆盖**：TaskCard、FilterRow 等核心组件尚无单测，建议补充。
-14. **无 CI/CD 和打包发布**：PyInstaller spec 已就绪，尚无自动化流水线。
+13. **数据库迁移**：`migrate()` 使用原始 ALTER TABLE SQL，应改为 Alembic 或 SQLAlchemy Migrate。
+14. **分类和优先级硬编码**：`config.py` 中的 CATEGORIES / PRIORITY_FILTERS 应可配置。
+15. ~~**主题持久化逻辑耦合在 MainWindow**~~ ✅ 已修复 — 已抽取到独立 `ThemeService`
+16. **UI 层测试覆盖**：TaskCard、FilterRow 等核心组件尚无单测，建议补充。
+17. **无 CI/CD 和打包发布**：PyInstaller spec 已就绪，尚无自动化流水线。
+18. **日期选择器高度微调**：QDateTimeEdit 高度与 QComboBox 存在细微差异，需进一步调优。
 
 ---
 
@@ -323,6 +327,9 @@ database/repository.py → models/task.py, database/database.py
 - [x] 清理死代码（`section_header.py`、`exceptions.py`、`resources/styles/`）
 - [x] 补充 `test_autostart.py`（6 个测试用例覆盖 enable/disable/toggle/注册表路径）
 - [x] 主题逻辑抽取为独立 `ThemeService`
+- [x] 修复右键菜单信号连接（toggled/edit_requested/delete_requested）
+- [x] 统一对话框样式（TaskDialog/ConfirmDialog 无边框圆角）
+- [x] 支持自定义托盘图标
 
 ### P2 长期优化
 
@@ -334,6 +341,7 @@ database/repository.py → models/task.py, database/database.py
 | Alembic 迁移 | 可追溯的数据库版本管理 |
 | CI/CD 流水线 | 自动测试和风格检查 |
 | UI 层单元测试 | TaskCard、FilterRow 等核心组件补充测试 |
+| 日期选择器高度微调 | QDateTimeEdit 与 QComboBox 高度需进一步对齐 |
 
 ---
 
@@ -348,4 +356,4 @@ database/repository.py → models/task.py, database/database.py
 | 代码规范 | 8/10 | 所有函数签名均有类型注解，无违规项 |
 | 测试覆盖 | 6/10 | services/database/utils 层有覆盖，UI 组件层仍缺失 |
 
-**综合成熟度：7.0/10** — 从 5.7 提升至 7.0，P0/P1 全部修复完毕，单元测试和工程化仍有提升空间。
+**综合成熟度：7.5/10** — 从 7.0 提升至 7.5，P0/P1 全部修复完毕，右键菜单、对话框样式、图标支持已完善，单元测试和工程化仍有提升空间。
