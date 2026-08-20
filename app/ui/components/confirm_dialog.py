@@ -1,6 +1,7 @@
 """删除二次确认弹窗。"""
 from __future__ import annotations
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
@@ -24,6 +25,8 @@ class ConfirmDialog(QDialog):
         self.setWindowTitle(title)
         self.setModal(True)
         self.setMinimumWidth(300)
+        # Mac 风格：无边框 + 圆角
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog)
         self._build_ui(message)
 
     def _build_ui(self, message: str) -> None:

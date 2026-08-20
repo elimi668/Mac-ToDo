@@ -1,4 +1,4 @@
-﻿/* ========== 全局 ========== */
+/* ========== 全局 ========== */
 * {
     font-family: "Segoe UI Variable", "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", sans-serif;
     color: #1D1D1F;
@@ -50,6 +50,25 @@ QDateEdit#FilterCombo {
     border-radius: 8px;
     padding: 5px 10px;
     font-size: 12px;
+    min-width: 140px;
+    height: 30px;
+}
+QDateEdit#FilterCombo:hover { border: 1px solid rgba(0, 0, 0, 0.15); }
+QDateEdit#FilterCombo:focus { border: 1px solid #007AFF; }
+QCalendarWidget {
+    background-color: #FFFFFF;
+    border: 1px solid rgba(0, 0, 0, 0.10);
+    border-radius: 8px;
+    font-size: 12px;
+}
+QCalendarWidget QAbstractItemView:enabled {
+    selection-background-color: #007AFF;
+    selection-color: #FFFFFF;
+}
+QCalendarWidget QMenu {
+    background-color: #FFFFFF;
+    border: 1px solid rgba(0, 0, 0, 0.10);
+    border-radius: 6px;
 }
 QPushButton#AddButton {
     background-color: #007AFF;
@@ -92,6 +111,10 @@ QCheckBox#TaskCheckbox::indicator:hover { border: 1.5px solid #007AFF; }
 QCheckBox#TaskCheckbox::indicator:checked {
     background-color: #007AFF; border: 1.5px solid #007AFF;
 }
-QDialog#TaskDialog, QDialog#ConfirmDialog { background-color: #F5F5F7; }
+QDialog#TaskDialog, QDialog#ConfirmDialog {
+    background-color: #F5F5F7;
+    border-radius: 12px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+}
 QLabel#ConfirmMessage { font-size: 14px; color: #1D1D1F; }
 QLabel#ErrorLabel { color: #FF3B30; font-size: 12px; padding: 2px 4px; }

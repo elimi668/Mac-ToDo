@@ -1,6 +1,8 @@
 """系统托盘图标管理。"""
 from __future__ import annotations
 
+from pathlib import Path
+
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QColor, QFont, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon, QWidget
@@ -20,6 +22,13 @@ class TrayManager:
         self._build_menu()
 
     def _make_icon(self) -> QIcon:
+        """使用自定义图标或回退到绘制图标。"""
+        icon_path = config.ICONS_DIR / "app_icon.png"
+        if icon_path.exists():
+            pixmap = QPixmap(str(icon_path))
+            if not pixmap.isNull():
+                return QIcon(pixmap.scaled(64, 64, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        # 回退：绘制默认图标
         pm = QPixmap(64, 64)
         pm.fill(QColor(0, 0, 0, 0))
         p = QPainter(pm)

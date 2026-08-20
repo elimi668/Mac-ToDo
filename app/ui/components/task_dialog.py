@@ -34,6 +34,8 @@ class TaskDialog(QDialog):
         self.setWindowTitle("编辑任务")
         self.setModal(True)
         self.setMinimumWidth(340)
+        # Mac 风格：无边框 + 圆角
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog)
         self._task = task
         self._deadline_was_touched = task.deadline is not None
         self._deadline_was_cleared = False

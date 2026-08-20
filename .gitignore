@@ -5,6 +5,10 @@ __pycache__/
 .venv/
 venv/
 .env
+python-packages/
+wheels/
+pip-cache/
+get-pip.py
 
 # IDE
 .idea/
@@ -13,6 +17,10 @@ venv/
 # App data
 app/data/
 *.db
+app/data/*.db-shm
+app/data/*.db-wal
+app/data/backup/
+app/data/theme.json
 
 # Build
 build/
@@ -23,6 +31,11 @@ MacTodo
 # Archive
 *.zip
 
-# Large binaries
-MacTodo
-dist/
+# Logs
+*.log
+error.log
+crash.log
+
+# Temp
+.tmp/
+python-tmp/

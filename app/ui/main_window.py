@@ -245,6 +245,9 @@ class MainWindow(QWidget):
             for task in bucket_tasks:
                 card = TaskCard(task, self._task_container)
                 card._task_id = task.id  # type: ignore[attr-defined]
+                card.toggled.connect(self._on_task_toggled)
+                card.edit_requested.connect(self._on_edit_requested)
+                card.delete_requested.connect(self._on_delete_requested)
                 new_items.append((card, task.id))
 
         # 收集当前布局中所有 widget 及其 task_id
