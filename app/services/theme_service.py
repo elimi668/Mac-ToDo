@@ -29,7 +29,7 @@ class ThemeService:
                     saved = json.load(f).get("theme")
                     if saved in ("light", "dark"):
                         return saved
-            except Exception:
+            except (json.JSONDecodeError, OSError):
                 pass
         return detect_system_theme()
 
@@ -79,5 +79,5 @@ def detect_system_theme() -> str:
         value, _ = winreg.QueryValueEx(key, "AppsUseLightTheme")
         winreg.CloseKey(key)
         return "light" if value == 1 else "dark"
-    except Exception:
+    except OSError:
         return "light"

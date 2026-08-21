@@ -1,7 +1,7 @@
 """快速输入栏：两行布局。第一行标题+添加，第二行类型/等级/日期。"""
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 
 from PySide6.QtCore import QDate, QDateTime, Qt, Signal
 from PySide6.QtWidgets import (
@@ -15,8 +15,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-_CATEGORIES = ["工作", "学习", "生活"]
-_PRIORITIES = [("中", 2), ("高", 1), ("低", 3)]
+from app import config
 
 
 class TaskInputBar(QWidget):
@@ -64,7 +63,7 @@ class TaskInputBar(QWidget):
 
         self._category_combo = QComboBox(self)
         self._category_combo.setObjectName("FilterCombo")
-        self._category_combo.addItems(_CATEGORIES)
+        self._category_combo.addItems(config.CATEGORIES[1:])  # 去掉"全部"
         row2.addWidget(self._category_combo)
 
         pri_label = QLabel("等级:", self)
@@ -73,7 +72,7 @@ class TaskInputBar(QWidget):
 
         self._priority_combo = QComboBox(self)
         self._priority_combo.setObjectName("FilterCombo")
-        for label, _val in _PRIORITIES:
+        for label, _val in config.PRIORITY_OPTIONS:
             self._priority_combo.addItem(label)
         row2.addWidget(self._priority_combo)
 
@@ -84,10 +83,11 @@ class TaskInputBar(QWidget):
         self._date_edit = QDateTimeEdit(self)
         self._date_edit.setObjectName("FilterCombo")
         self._date_edit.setCalendarPopup(True)
-        self._date_edit.setDateTime(QDateTime.currentDateTime())
+        self._date_edit.setDateTime(QDateTime(QDate.currentDate().addDays(1)))
         self._date_edit.setDisplayFormat("yyyy-MM-dd HH:mm")
         self._date_edit.setSpecialValueText("无日期")
         self._date_edit.setMinimumDate(QDate(2000, 1, 1))
+        self._date_edit.setFixedHeight(32)
         row2.addWidget(self._date_edit)
 
         row2.addStretch(1)
@@ -105,7 +105,7 @@ class TaskInputBar(QWidget):
             self._show_error("任务标题不能为空")
             return
         category = self._category_combo.currentText()
-        priority = _PRIORITIES[self._priority_combo.currentIndex()][1]
+        priority = config.PRIORITY_OPTIONS[self._priority_combo.currentIndex()][1]
         qdt = self._date_edit.dateTime()
         deadline: datetime | None = qdt.toPython()
         self._clear_error()

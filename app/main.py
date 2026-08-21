@@ -12,6 +12,7 @@ from app import config
 from app.database.database import init_db
 from app.database.repository import TaskRepository
 from app.utils.backup import backup_on_startup
+from app.utils.single_instance import SingleInstance
 
 
 def _global_excepthook(exc_type, exc_value, exc_tb) -> None:
@@ -20,10 +21,20 @@ def _global_excepthook(exc_type, exc_value, exc_tb) -> None:
         return
     msg = "".join(traceback.format_exception(exc_type, exc_value, exc_tb))
     print(msg, file=sys.stderr)
-    QMessageBox.critical(None, "程序异常", "发生未捕获异常：\n\n{}".format(exc_value))
+    QMessageBox.critical(None, "程序异常", f"发生未捕获异常：\n\n{exc_value}")
 
 
 def main() -> int:
+    # ── 单实例检查 ───────────────────────────────────────────────────────────
+    # 防止用户双击两次或从不同位置启动多个进程 / 窗口
+    if not SingleInstance(app_name=config.APP_NAME).try_lock():
+        QMessageBox.warning(
+            None,
+            "已在运行",
+            f"「{config.APP_NAME}」已经在运行，请勿重复启动。",
+        )
+        return 0
+
     sys.excepthook = _global_excepthook
 
     init_db()
@@ -42,9 +53,9 @@ def main() -> int:
     if qss_path.exists():
         app.setStyleSheet(qss_path.read_text(encoding="utf-8"))
 
+    from app.services.reminder_service import ReminderService
     from app.ui.main_window import MainWindow
     from app.ui.tray import TrayManager
-    from app.services.reminder_service import ReminderService
 
     window = MainWindow()
     window.setWindowFlags(window.windowFlags() | Qt.CustomizeWindowHint)

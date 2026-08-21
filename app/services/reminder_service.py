@@ -1,13 +1,16 @@
 """截止提醒服务。动态计算检查间隔：以最近截止日期为准，避免固定轮询的浪费和延迟。"""
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+import logging
+from datetime import datetime, timezone
 
 from PySide6.QtCore import QTimer
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QSystemTrayIcon, QWidget
 
 from app.database.repository import TaskRepository
+
+_logger = logging.getLogger(__name__)
 
 
 class ReminderService:
@@ -47,7 +50,7 @@ class ReminderService:
 
     def _compute_next_delay(self) -> int:
         """根据最近未提醒任务的截止时间和当前时间，计算下次检查间隔（秒）。"""
-        now = datetime.now()
+        now = datetime.now(tz=timezone.utc)
         tasks = self._repo.list_due_reminders(now, lead_minutes=self._lead_minutes)
         if tasks:
             # 有任务即将到期，立即检查
@@ -64,6 +67,7 @@ class ReminderService:
     def _find_nearest_deadline(self, now: datetime) -> datetime | None:
         """找到最近的一个未提醒的截止日期。"""
         from sqlalchemy import select
+
         from app.models.task import Task
 
         with self._repo._get_session() as session:
@@ -82,12 +86,9 @@ class ReminderService:
             return result  # type: ignore[return-value]
 
     def _check(self) -> None:
-        now = datetime.now()
+        now = datetime.now(tz=timezone.utc)
         tasks = self._repo.list_due_reminders(now, lead_minutes=self._lead_minutes)
-        print(f"[Reminder] check time: {now.isoformat()}, found: {len(tasks)} due tasks")
-        for t in tasks:
-            dl = t.deadline.isoformat() if t.deadline else "None"
-            print(f"[Reminder]   task id={t.id} title={t.title!r} deadline={dl}")
+        _logger.debug("check time=%s found=%d due tasks", now.isoformat(), len(tasks))
         if not tasks:
             self._stop_flash()
             self._schedule_next()
@@ -96,7 +97,7 @@ class ReminderService:
         for task in tasks:
             if task.deadline is None:
                 continue
-            print(f"[Reminder] notify: id={task.id} title={task.title!r}")
+            _logger.debug("notify: id=%d title=%r deadline=%s", task.id, task.title, task.deadline)
             self._notify(task)
             self._repo.mark_reminded(task.id)
 
@@ -106,11 +107,9 @@ class ReminderService:
     def _notify(self, task: object) -> None:
         title = "任务即将到期"
         msg = f'"{task.title}" 将在 {task.deadline} 截止'  # type: ignore[attr-defined]
-
-        if self._parent.isVisible():
-            self._tray.showMessage(title, msg, QSystemTrayIcon.MessageIcon.Information, 5000)
-        else:
-            self._tray.showMessage(title, msg, QSystemTrayIcon.MessageIcon.Information, 5000)
+        self._tray.showMessage(title, msg, QSystemTrayIcon.MessageIcon.Information, 5000)
+        # 窗口隐藏时才闪烁图标，窗口可见时只需通知即可
+        if not self._parent.isVisible():
             self._start_flash()
 
     def _start_flash(self) -> None:

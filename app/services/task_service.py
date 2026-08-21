@@ -1,7 +1,7 @@
 """Business logic layer: wraps Repository, provides grouping and filtering. UI only calls Service."""
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from app.database.repository import NO_CHANGE, TaskRepository
 from app.models.task import Task
@@ -39,7 +39,7 @@ class TaskService:
 
     def group_by_date(self, tasks: list[Task]) -> dict[str, list[Task]]:
         """Group by: past due / today / tomorrow / future / no date."""
-        today = date.today()
+        today = datetime.now(tz=timezone.utc).date()
         tomorrow = today + timedelta(days=1)
         buckets: dict[str, list[Task]] = {
             "已过期": [],
@@ -85,6 +85,18 @@ class TaskService:
     def delete_task(self, task_id: int) -> bool:
         return self._repo.delete(task_id)
 
+    def batch_set_completed(self, task_ids: list[int], completed: bool) -> int:
+        """批量完成/取消完成，返回实际更新的行数。"""
+        return self._repo.batch_set_completed(task_ids, completed)
+
+    def batch_toggle_tasks(self, task_ids: list[int]) -> int:
+        """批量切换完成状态（完成↔取消完成），返回实际更新的行数。"""
+        return self._repo.batch_toggle_tasks(task_ids)
+
+    def batch_delete(self, task_ids: list[int]) -> int:
+        """批量删除，返回实际删除的行数。"""
+        return self._repo.batch_delete(task_ids)
+
     def get_grouped_filtered(
         self,
         category: str | None = None,
@@ -102,7 +114,7 @@ class TaskService:
         if date_filter is None or date_filter == "全部":
             return grouped
 
-        today = date.today()
+        today = datetime.now(tz=timezone.utc).date()
         filtered: dict[str, list[Task]] = {k: [] for k in grouped}
 
         if date_filter == "今天":

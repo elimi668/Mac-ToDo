@@ -1,7 +1,7 @@
 """搜索框组件：带图标的搜索输入框，实时触发搜索信号。"""
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QWidget
 
 

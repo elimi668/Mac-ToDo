@@ -52,6 +52,8 @@ FONT_FAMILY: str = "Segoe UI Variable, SF Pro Text, PingFang SC, Microsoft YaHei
 # ---------- 分类 ----------
 CATEGORIES: list[str] = ["全部", "工作", "学习", "生活"]
 PRIORITY_FILTERS: list[tuple[str, int | None]] = [("全部", None), ("高", 1), ("中", 2), ("低", 3)]
+# 供输入栏/编辑框使用（去掉"全部"项，顺序：高→中→低）
+PRIORITY_OPTIONS: list[tuple[str, int]] = [(label, val) for label, val in PRIORITY_FILTERS if val is not None]
 
 # ---------- 托盘 ----------
 TRAY_TOOLTIP: str = "TodoMate"

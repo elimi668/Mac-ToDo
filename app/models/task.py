@@ -1,7 +1,7 @@
 """Task ORM 模型（SQLAlchemy 2.0 声明式）。字段命名与产品需求一致。"""
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column

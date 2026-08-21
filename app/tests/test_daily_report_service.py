@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import tempfile
 import unittest
-from datetime import date, datetime, timedelta
+from datetime import datetime, timezone
 from pathlib import Path
 
 from app.database.database import dispose_db, init_db
@@ -38,7 +38,7 @@ class DailyReportServiceTest(unittest.TestCase):
 
     def test_generate_empty(self) -> None:
         report = self.svc.generate()
-        today_str = date.today().strftime('%Y-%m-%d')
+        today_str = datetime.now(tz=timezone.utc).date().strftime('%Y-%m-%d')
         self.assertIn(today_str, report)
         self.assertIn('创建: 0 项', report)
         self.assertIn('完成: 0 项', report)
@@ -61,7 +61,7 @@ class DailyReportServiceTest(unittest.TestCase):
 
     def test_generate_mixed(self) -> None:
         done = self.svc._repo.create('做完的', category='工作', priority=1)
-        todo = self.svc._repo.create('没做的', category='生活', priority=3)
+        self.svc._repo.create('没做的', category='生活', priority=3)
         self.svc._repo.set_completed(done.id, True)
         report = self.svc.generate()
         self.assertIn('[x] 做完的', report)

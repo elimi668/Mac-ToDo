@@ -17,12 +17,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from app import config
 from app.database.repository import NO_CHANGE
 from app.models.task import Task
-
-_CATEGORIES = ["工作", "学习", "生活"]
-_PRIORITY_LABELS = [("高", 1), ("中", 2), ("低", 3)]
-_PRIORITY_VALUES = {1: 0, 2: 1, 3: 2}  # priority -> combo index
 
 
 class TaskDialog(QDialog):
@@ -58,12 +55,12 @@ class TaskDialog(QDialog):
 
         self._category_combo = QComboBox(self)
         self._category_combo.setObjectName("FilterCombo")
-        self._category_combo.addItems(_CATEGORIES)
+        self._category_combo.addItems(config.CATEGORIES[1:])  # 去掉"全部"
         row.addWidget(self._category_combo)
 
         self._priority_combo = QComboBox(self)
         self._priority_combo.setObjectName("FilterCombo")
-        for label, _val in _PRIORITY_LABELS:
+        for label, _val in config.PRIORITY_OPTIONS:
             self._priority_combo.addItem(label)
         row.addWidget(self._priority_combo)
 
@@ -74,6 +71,7 @@ class TaskDialog(QDialog):
         self._date_edit.setDisplayFormat("yyyy-MM-dd HH:mm")
         self._date_edit.setSpecialValueText("无日期")
         self._date_edit.setMinimumDate(QDate(2000, 1, 1))
+        self._date_edit.setFixedHeight(32)
         self._btn_clear_date = QPushButton("x", self)
         self._btn_clear_date.setFixedSize(24, 24)
         self._btn_clear_date.setCursor(Qt.PointingHandCursor)
@@ -122,10 +120,12 @@ class TaskDialog(QDialog):
     def _load_task(self) -> None:
         self._title_edit.setText(self._task.title)
         # 分类
-        idx = _CATEGORIES.index(self._task.category) if self._task.category in _CATEGORIES else 0
+        idx = config.CATEGORIES.index(self._task.category) if self._task.category in config.CATEGORIES else 0
         self._category_combo.setCurrentIndex(idx)
         # 等级
-        pidx = _PRIORITY_VALUES.get(self._task.priority, 1)
+        # 等级（priority 1=高 2=中 3=低，与 PRIORITY_OPTIONS 顺序对应）
+        _pri_to_idx = {val: i for i, (_, val) in enumerate(config.PRIORITY_OPTIONS)}
+        pidx = _pri_to_idx.get(self._task.priority, 1)
         self._priority_combo.setCurrentIndex(pidx)
         # 日期
         if self._task.deadline is not None:
@@ -150,7 +150,7 @@ class TaskDialog(QDialog):
         """
         title = self._title_edit.text().strip()
         category = self._category_combo.currentText()
-        priority = _PRIORITY_LABELS[self._priority_combo.currentIndex()][1]
+        priority = config.PRIORITY_OPTIONS[self._priority_combo.currentIndex()][1]
 
         if not self._deadline_was_touched:
             deadline: datetime | None | object = NO_CHANGE

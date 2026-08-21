@@ -1,8 +1,8 @@
-﻿"""数据备份：启动时备份 + 定时备份。"""
+"""数据备份：启动时备份 + 定时备份。"""
 from __future__ import annotations
 
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from app import config
@@ -22,7 +22,7 @@ def backup_db(db_file: Path | None = None) -> Path | None:
         return None
     try:
         backup_dir = _ensure_backup_dir()
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(tz=timezone.utc).strftime("%Y%m%d_%H%M%S")
         dest = backup_dir / f"todo_backup_{timestamp}.db"
         # 使用 sqlite3 在线备份 API 获取一致性快照，避免 shutil.copy2 在写入中复制不完整数据
         src_conn = sqlite3.connect(str(source))
@@ -43,7 +43,7 @@ def backup_on_startup() -> Path | None:
     backup_dir = _ensure_backup_dir()
     latest = _get_latest_backup(backup_dir)
     if latest is not None:
-        age_hours = (datetime.now().timestamp() - latest.stat().st_mtime) / 3600
+        age_hours = (datetime.now(tz=timezone.utc).timestamp() - latest.stat().st_mtime) / 3600
         if age_hours < config.BACKUP_INTERVAL_HOURS:
             return None
     return backup_db()

@@ -2,10 +2,9 @@
 from __future__ import annotations
 
 import re
-from datetime import date
+from datetime import datetime, timezone
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QRect
 from PySide6.QtGui import QFontDatabase
 from PySide6.QtWidgets import (
     QApplication,
@@ -79,7 +78,7 @@ class ReportDialog(QDialog):
         header_layout.setContentsMargins(0, 0, 0, 0)
         header_layout.setSpacing(2)
 
-        today_str = date.today().strftime("%Y-%m-%d")
+        today_str = datetime.now(tz=timezone.utc).date().strftime("%Y-%m-%d")
         title_label = QLabel(f"\U0001f4cb 任务日报 \u00b7 {today_str}", self)
         title_label.setObjectName("ReportTitle")
         font = title_label.font()
@@ -141,7 +140,7 @@ class ReportDialog(QDialog):
         cb.setText(self._report_text)
 
     def _save_as_md(self) -> None:
-        today_str = date.today().strftime("%Y%m%d")
+        today_str = datetime.now(tz=timezone.utc).date().strftime("%Y%m%d")
         default_name = f"日报_{config.APP_NAME}_{today_str}.md"
         filepath, _ = QFileDialog.getSaveFileName(
             self,

@@ -3,11 +3,10 @@ from __future__ import annotations
 
 import tempfile
 import unittest
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from PySide6.QtCore import QTimerEvent
 from PySide6.QtWidgets import QApplication
 
 from app.database.database import dispose_db, init_db
@@ -23,7 +22,7 @@ class ReminderServiceTest(unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
         db_path = Path(self._tmp.name) / "test.db"
-        init_db("sqlite:///{}".format(db_path))
+        init_db(f"sqlite:///{db_path}")
         self.repo = TaskRepository()
 
     def tearDown(self) -> None:
@@ -37,15 +36,14 @@ class ReminderServiceTest(unittest.TestCase):
         return ReminderService(self.repo, mock_tray, mock_parent)
 
     def test_due_task_triggers_reminder(self):
-        today = date.today()
-        t = self.repo.create("到期任务", deadline=datetime.now() + timedelta(minutes=5))
+        t = self.repo.create("到期任务", deadline=datetime.now(tz=timezone.utc) + timedelta(minutes=5))
         svc = self._make_service()
         svc._check()
         refetched = self.repo.get_by_id(t.id)
         self.assertTrue(refetched.reminded)
 
     def test_future_task_not_triggered(self):
-        future = date.today() + timedelta(days=30)
+        future = datetime.now(tz=timezone.utc).date() + timedelta(days=30)
         t = self.repo.create("远处的任务", deadline=future)
         svc = self._make_service()
         svc._check()
@@ -53,8 +51,7 @@ class ReminderServiceTest(unittest.TestCase):
         self.assertFalse(refetched.reminded)
 
     def test_completed_task_not_triggered(self):
-        today = date.today()
-        t = self.repo.create("已完成的任务", deadline=today)
+        t = self.repo.create("已完成的任务", deadline=datetime.now(tz=timezone.utc).date())
         self.repo.set_completed(t.id, True)
         svc = self._make_service()
         svc._check()
@@ -62,16 +59,14 @@ class ReminderServiceTest(unittest.TestCase):
         self.assertFalse(refetched.reminded)
 
     def test_already_reminded_not_triggered(self):
-        today = date.today()
-        t = self.repo.create("已提醒的任务", deadline=today)
+        t = self.repo.create("已提醒的任务", deadline=datetime.now(tz=timezone.utc).date())
         self.repo.mark_reminded(t.id)
         svc = self._make_service()
         svc._check()
         svc._tray.showMessage.assert_not_called()
 
     def test_only_remind_once(self):
-        today = date.today()
-        t = self.repo.create("只提醒一次", deadline=datetime.now() + timedelta(minutes=5))
+        t = self.repo.create("只提醒一次", deadline=datetime.now(tz=timezone.utc) + timedelta(minutes=5))
         svc = self._make_service()
         svc._check()
         svc._check()

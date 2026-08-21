@@ -1,0 +1,16 @@
+# Development & Testing Dependencies
+# Core runtime deps are in requirements.txt
+
+# Testing
+pytest>=8.0
+pytest-qt>=4.2
+
+# Code style & linting
+ruff>=0.9
+
+# Packaging
+pyinstaller>=6.0
+
+# Type checking (optional but recommended)
+mypy>=1.0
+types-SQLAlchemy>=2.0

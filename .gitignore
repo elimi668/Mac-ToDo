@@ -28,6 +28,15 @@ dist/
 *.spec
 MacTodo
 
+# Portable
+portable/python/
+portable/app/data/
+
+# Alembic
+alembic.ini
+alembic/versions/*.pyc
+alembic/versions/__pycache__/
+
 # Archive
 *.zip
 

@@ -1,7 +1,9 @@
-﻿"""TaskRepository: encapsulates Task CRUD and common queries. Short transactions, each operation gets an independent session."""
+"""TaskRepository: encapsulates Task CRUD and common queries. Short transactions, each operation gets an independent session."""
 from __future__ import annotations
 
-from datetime import datetime
+import sqlite3
+from datetime import datetime, timezone
+from typing import Self
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
@@ -12,9 +14,9 @@ from app.models.task import Task
 
 class _NoChangeType:
     """Sentinel singleton: distinguish 'don't update deadline' from 'pass None to clear deadline'."""
-    _instance: "_NoChangeType | None" = None
+    _instance: _NoChangeType | None = None
 
-    def __new__(cls) -> "_NoChangeType":
+    def __new__(cls) -> Self:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance
@@ -148,7 +150,7 @@ class TaskRepository:
             if task is None:
                 return None
             task.completed = completed
-            task.completed_time = datetime.now() if completed else None
+            task.completed_time = datetime.now(tz=timezone.utc) if completed else None
             session.commit()
             session.refresh(task)
             return task
@@ -163,6 +165,53 @@ class TaskRepository:
             session.delete(task)
             session.commit()
             return True
+
+    def batch_set_completed(self, task_ids: list[int], completed: bool) -> int:
+        """批量完成/取消完成。返回实际更新的行数。"""
+        if not task_ids:
+            return 0
+        with self._get_session() as session:
+            updated = 0
+            for tid in task_ids:
+                task = session.get(Task, tid)
+                if task is None:
+                    continue
+                task.completed = completed
+                task.completed_time = datetime.now(tz=timezone.utc) if completed else None
+                updated += 1
+            session.commit()
+            return updated
+
+    def batch_toggle_tasks(self, task_ids: list[int]) -> int:
+        """批量切换完成状态（完成↔取消完成）。返回实际更新的行数。"""
+        if not task_ids:
+            return 0
+        with self._get_session() as session:
+            updated = 0
+            for tid in task_ids:
+                task = session.get(Task, tid)
+                if task is None:
+                    continue
+                task.completed = not task.completed
+                task.completed_time = datetime.now(tz=timezone.utc) if task.completed else None
+                updated += 1
+            session.commit()
+            return updated
+
+    def batch_delete(self, task_ids: list[int]) -> int:
+        """批量删除。返回实际删除的行数。"""
+        if not task_ids:
+            return 0
+        with self._get_session() as session:
+            deleted = 0
+            for tid in task_ids:
+                task = session.get(Task, tid)
+                if task is None:
+                    continue
+                session.delete(task)
+                deleted += 1
+            session.commit()
+            return deleted
 
 
     # ---------- Reminder ----------
@@ -225,8 +274,9 @@ class TaskRepository:
     @staticmethod
     def migrate() -> None:
         """Check and auto-add new columns (priority, etc.)."""
-        from app.database.database import DB_FILE, _engine
         import sqlalchemy as sa
+
+        from app.database.database import _engine
 
         if _engine is None:
             return
@@ -237,5 +287,5 @@ class TaskRepository:
                 if "reminded" not in columns:
                     conn.execute(sa.text("ALTER TABLE tasks ADD COLUMN reminded BOOLEAN DEFAULT 0"))
                     conn.commit()
-        except Exception:
+        except (sqlite3.Error, OSError):
             pass  # Table may not exist yet, ignore

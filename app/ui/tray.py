@@ -4,7 +4,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QAction, QIcon
+from PySide6.QtGui import QAction, QColor, QFont, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon, QWidget
 
 from app import config
@@ -72,6 +72,10 @@ class TrayManager:
         act_report.triggered.connect(self._generate_daily_report)
         menu.addAction(act_report)
 
+        act_settings = QAction("设置", menu)
+        act_settings.triggered.connect(self._open_settings)
+        menu.addAction(act_settings)
+
         menu.addSeparator()
 
         act_quit = QAction("退出", menu)
@@ -89,6 +93,7 @@ class TrayManager:
 
     def _toggle_autostart(self) -> None:
         autostart.toggle()
+        self._act_autostart.setChecked(autostart.is_enabled())
 
     def _backup_now(self) -> None:
         from app.utils.backup import backup_db
@@ -108,6 +113,13 @@ class TrayManager:
         cb.setText(report)
 
         dialog = ReportDialog(report, self._window)
+        dialog.exec()
+
+    def _open_settings(self) -> None:
+        """打开设置对话框。"""
+        from app.ui.components.settings_dialog import SettingsDialog
+
+        dialog = SettingsDialog(self._window)
         dialog.exec()
 
     def show(self) -> None:

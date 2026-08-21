@@ -2,13 +2,12 @@
 from __future__ import annotations
 
 import unittest
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 from PySide6.QtWidgets import QApplication
 
 from app.database.database import dispose_db, init_db
 from app.database.repository import NO_CHANGE, TaskRepository
-from app.models.task import Task
 from app.ui.components.task_dialog import TaskDialog
 
 
@@ -58,9 +57,9 @@ class TaskDialogTest(unittest.TestCase):
         dialog = self._open_dialog_with_deadline(date(2026, 7, 15))
         dialog._btn_clear_date.click()
         self._app.processEvents()
-        new_dt = datetime(2026, 9, 1, 10, 30, 0)
+        new_dt = datetime(2026, 9, 1, 10, 30, 0, tzinfo=timezone.utc)
         dialog._date_edit.setDateTime(
-            datetime(new_dt.year, new_dt.month, new_dt.day, new_dt.hour, new_dt.minute, new_dt.second)
+            datetime(new_dt.year, new_dt.month, new_dt.day, new_dt.hour, new_dt.minute, new_dt.second, tzinfo=timezone.utc)
         )
         _, _cat, _pri, deadline = dialog.result_data
         assert isinstance(deadline, datetime)

@@ -1,7 +1,7 @@
 ﻿"""筛选行组件：类型/等级/日期三个下拉框，横向排列。"""
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QComboBox,
     QHBoxLayout,

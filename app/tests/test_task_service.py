@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import tempfile
 import unittest
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from app.database.database import dispose_db, init_db
@@ -28,7 +28,7 @@ class TaskServiceTest(unittest.TestCase):
         self.assertEqual(len(tasks), 1)
 
     def test_group_by_date(self) -> None:
-        today = date.today()
+        today = datetime.now(tz=timezone.utc).date()
         tomorrow = today + timedelta(days=1)
         future = today + timedelta(days=5)
         past = today - timedelta(days=1)
@@ -47,7 +47,7 @@ class TaskServiceTest(unittest.TestCase):
         self.assertEqual(len(grouped["无日期"]), 1)
 
     def test_get_grouped_filtered(self) -> None:
-        today = date.today()
+        today = datetime.now(tz=timezone.utc).date()
         self.svc.create_task("a", category="工作", priority=1, deadline=today)
         self.svc.create_task("b", category="学习", priority=2, deadline=today)
 

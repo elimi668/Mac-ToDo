@@ -1,7 +1,7 @@
 """日报服务：查询当天任务数据并生成 Markdown 格式文本。"""
 from __future__ import annotations
 
-from datetime import datetime, date
+from datetime import datetime, timezone
 
 from app.database.repository import TaskRepository
 from app.models.task import Task
@@ -14,10 +14,10 @@ class DailyReportService:
         self._repo = repo or TaskRepository()
 
     def _today_start(self) -> datetime:
-        return datetime.combine(date.today(), datetime.min.time())
+        return datetime.combine(datetime.now(tz=timezone.utc).date(), datetime.min.time())
 
     def _today_end(self) -> datetime:
-        return datetime.combine(date.today(), datetime.max.time())
+        return datetime.combine(datetime.now(tz=timezone.utc).date(), datetime.max.time())
 
     def get_today_created(self) -> list[Task]:
         """获取当天创建的任务列表。"""
@@ -46,7 +46,7 @@ class DailyReportService:
         ]
 
         lines: list[str] = []
-        today_str = date.today().strftime("%Y-%m-%d")
+        today_str = datetime.now(tz=timezone.utc).date().strftime("%Y-%m-%d")
         lines.append(f"# 📋 任务日报 · {today_str}")
         lines.append("")
         lines.append(f"- 创建: {len(created)} 项")

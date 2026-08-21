@@ -4,8 +4,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from sqlalchemy import Engine, create_engine
-from sqlalchemy import event
+from sqlalchemy import Engine, create_engine, event
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from app import config
@@ -18,6 +17,9 @@ else:
     DB_DIR = config.APP_ROOT / "data"
 DB_FILE = DB_DIR / "todo.db"
 
+# Alembic 配置文件路径（相对于项目根目录）
+ALEMBIC_INI = Path(__file__).resolve().parent.parent.parent / "alembic.ini"
+
 
 class Base(DeclarativeBase):
     """所有 ORM 模型的基类。"""
@@ -29,7 +31,12 @@ SessionLocal: sessionmaker[Session] | None = None
 
 
 def init_db(db_url: str | None = None) -> None:
-    """初始化数据库。默认使用本地文件 app/data/todo.db；测试可传入临时文件 URL。"""
+    """初始化数据库。默认使用本地文件 app/data/todo.db；测试可传入临时文件 URL。
+
+    迁移策略：
+    - 临时数据库（测试）：仅执行 Base.metadata.create_all()，不运行 alembic
+    - 生产数据库（文件路径）：先 create_all（幂等），再执行 alembic upgrade head
+    """
     global _engine, SessionLocal
 
     # 若已有旧引擎，先释放（测试复用模块时避免句柄泄漏）
@@ -56,9 +63,29 @@ def init_db(db_url: str | None = None) -> None:
 
     Base.metadata.create_all(_engine)
 
-    # 幂等迁移：已有库添加新字段
-    from app.database.repository import TaskRepository
-    TaskRepository.migrate()
+    # 仅对文件路径数据库运行 alembic 迁移（测试用内存/临时数据库跳过）
+    if db_url.startswith("sqlite:///") and not db_url.startswith("sqlite:///:memory:"):
+        _run_alembic_upgrade()
+
+
+def _run_alembic_upgrade() -> None:
+    """运行 alembic upgrade head 以应用所有待处理迁移。"""
+    try:
+        from alembic.config import Config
+
+        from alembic import command
+
+        # 使用绝对路径，确保从任意工作目录均可正确加载
+        alembic_cfg = Config(str(ALEMBIC_INI))
+        command.upgrade(alembic_cfg, "head")
+    except ImportError:
+        # 无 alembic 时回退到原始 migrate() 逻辑
+        from app.database.repository import TaskRepository
+        TaskRepository.migrate()
+    except Exception:
+        # 迁移失败不阻断启动，仅打印警告
+        import logging
+        logging.getLogger(__name__).warning("Alembic migration failed, using current schema", exc_info=True)
 
 
 def get_session() -> Session:

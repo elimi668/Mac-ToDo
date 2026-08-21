@@ -7,7 +7,7 @@ from datetime import date
 from pathlib import Path
 
 from app.database.database import dispose_db, init_db
-from app.database.repository import NO_CHANGE, TaskRepository
+from app.database.repository import TaskRepository
 
 
 class TaskRepositoryTest(unittest.TestCase):
