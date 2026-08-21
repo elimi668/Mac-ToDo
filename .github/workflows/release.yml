@@ -24,7 +24,7 @@ jobs:
 
       - name: Build PyInstaller exe
         run: |
-          pyinstaller --onefile --windowed --name TodoMate --icon=app/resources/icons/app_icon.ico --add-data "app;app" --add-data "alembic;alembic" --add-data "alembic.ini;." --collect-all PySide6 dist/TodoMate.exe
+          pyinstaller --onefile --windowed --name TodoMate --icon=app/resources/icons/app_icon.ico --add-data "app;app" --add-data "alembic;alembic" --add-data "alembic.ini;." --collect-all PySide6
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
